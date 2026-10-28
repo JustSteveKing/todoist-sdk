@@ -23,6 +23,7 @@ use JustSteveKing\TodoistSdk\Inputs\SectionChanges;
 use JustSteveKing\TodoistSdk\Inputs\TaskChanges;
 use JustSteveKing\TodoistSdk\Inputs\ViewStyle;
 use JustSteveKing\TodoistSdk\OAuth\Scope;
+use JustSteveKing\TodoistSdk\Webhooks\Event;
 
 /**
  * The SDK against Todoist's OpenAPI spec (spec/todoist-openapi.json), so a
@@ -131,6 +132,22 @@ it('knows every OAuth scope Todoist documents', function (): void {
     preg_match_all('/^\| ([a-z_]+:[a-z_]+)\s+\|/m', $section, $matches);
 
     expect(array_map(fn (Scope $s): string => $s->value, Scope::cases()))->toEqualCanonicalizing($matches[1]);
+});
+
+it('knows every webhook event Todoist documents', function (): void {
+    $guide = '';
+
+    foreach (spec()['tags'] ?? [] as $tag) {
+        if (($tag['name'] ?? null) === 'Webhooks') {
+            $guide = (string) $tag['description'];
+        }
+    }
+
+    $section = (string) strstr(strstr($guide, '#### Events') ?: '', '#### Events Extra', true);
+    preg_match_all('/^\| ([a-z]+:[a-z]+)\s+\|/m', $section, $matches);
+
+    expect($matches[1])->not->toBeEmpty()
+        ->and(array_map(fn (Event $e): string => $e->value, Event::cases()))->toEqualCanonicalizing($matches[1]);
 });
 
 it('knows every view style Todoist accepts', function (): void {
