@@ -14,6 +14,10 @@ use JustSteveKing\SdkToolbox\Time\Sleeper;
 use JustSteveKing\SdkToolbox\Time\SystemClock;
 use JustSteveKing\SdkToolbox\Time\SystemSleeper;
 use JustSteveKing\TodoistSdk\Errors\TodoistErrors;
+use JustSteveKing\TodoistSdk\Resources\Comments;
+use JustSteveKing\TodoistSdk\Resources\Labels;
+use JustSteveKing\TodoistSdk\Resources\Projects;
+use JustSteveKing\TodoistSdk\Resources\Sections;
 use JustSteveKing\TodoistSdk\Resources\Tasks;
 use Psr\Clock\ClockInterface;
 use Psr\EventDispatcher\EventDispatcherInterface;
@@ -73,5 +77,25 @@ final class Todoist extends Connector
     public function tasks(): Tasks
     {
         return new Tasks($this);
+    }
+
+    public function projects(): Projects
+    {
+        return new Projects($this);
+    }
+
+    public function sections(): Sections
+    {
+        return new Sections($this);
+    }
+
+    public function labels(): Labels
+    {
+        return new Labels($this);
+    }
+
+    public function comments(): Comments
+    {
+        return new Comments($this);
     }
 }

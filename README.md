@@ -4,7 +4,7 @@ A PHP client for [Todoist's API v1](https://developer.todoist.com/api/v1), built
 
 > This package is not created by, affiliated with, or supported by Todoist.
 
-It's early. Tasks are covered today; projects, sections, labels, comments, OAuth and webhooks are on the way.
+It's early. Tasks, projects, sections, labels and comments are covered today; OAuth, uploads and webhooks are on the way.
 
 ## Installing
 
@@ -52,6 +52,35 @@ $todoist->tasks()->close($task->id);
 $todoist->tasks()->reopen($task->id);
 $todoist->tasks()->delete($task->id);
 ```
+
+## Projects, sections, labels and comments
+
+Each works the same way as tasks: `all()` pages as you iterate, `create()` takes a `New...` input, and `update()` takes a `...Changes` builder that sends only what you set.
+
+```php
+use JustSteveKing\TodoistSdk\Inputs\Color;
+use JustSteveKing\TodoistSdk\Inputs\NewComment;
+use JustSteveKing\TodoistSdk\Inputs\NewProject;
+use JustSteveKing\TodoistSdk\Inputs\NewSection;
+use JustSteveKing\TodoistSdk\Inputs\ProjectChanges;
+use JustSteveKing\TodoistSdk\Inputs\ViewStyle;
+
+$project = $todoist->projects()->create(new NewProject('Kitchen refit', color: Color::Teal, viewStyle: ViewStyle::Board));
+$todoist->sections()->create(new NewSection('Quotes', $project->id));
+
+$todoist->projects()->update($project->id, ProjectChanges::new()->defaultIcon());
+$todoist->projects()->archive($project->id);
+
+foreach ($todoist->labels()->search('wait') as $label) {
+    echo $label->name, PHP_EOL;
+}
+
+$todoist->comments()->create(NewComment::onTask('6XGgmFVcrG5RRjVr', 'Need one bottle of milk'));
+```
+
+Personal and workspace projects come back as the same `Project`. The fields only a workspace project has are null on a personal one, so `$project->workspaceId !== null` tells you which you've got.
+
+Shared labels are only names on tasks shared with you, so they have their own methods: `labels()->shared()`, `renameShared()` and `removeShared()`.
 
 ## When things go wrong
 

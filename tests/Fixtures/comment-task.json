@@ -1,0 +1,17 @@
+{
+    "id": "6XGgmFQrx44wfGHr",
+    "posted_uid": "1234567",
+    "content": "Looks good to me.",
+    "file_attachment": null,
+    "uids_to_notify": [
+        "1234567"
+    ],
+    "is_deleted": false,
+    "posted_at": "2025-01-15T10:30:00Z",
+    "reactions": {
+        "\ud83d\udc4d": [
+            "1234567"
+        ]
+    },
+    "item_id": "6XGgmFVcrG5RRjVr"
+}

@@ -34,6 +34,30 @@ function taskJson(array $overrides = []): array
 }
 
 /**
+ * The fixture built from the spec's examples, with overrides.
+ *
+ * @param  array<string, mixed>  $overrides
+ * @return array<string, mixed>
+ */
+function example(string $name, array $overrides = []): array
+{
+    /** @var array<string, mixed> $fixture */
+    $fixture = json_decode((string) file_get_contents(__DIR__."/Fixtures/{$name}.json"), true);
+
+    return [...$fixture, ...$overrides];
+}
+
+/**
+ * A page of results, as Todoist wraps every list.
+ *
+ * @param  list<mixed>  $results
+ */
+function page(array $results, ?string $next = null): Psr\Http\Message\ResponseInterface
+{
+    return JustSteveKing\SdkToolbox\Testing\FakeResponse::json(['results' => $results, 'next_cursor' => $next]);
+}
+
+/**
  * The OpenAPI spec this SDK is built against.
  *
  * @return array<string, mixed>

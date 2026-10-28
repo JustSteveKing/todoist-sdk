@@ -2,9 +2,24 @@
 
 declare(strict_types=1);
 
+use JustSteveKing\TodoistSdk\Data\Collaborator;
+use JustSteveKing\TodoistSdk\Data\Comment;
+use JustSteveKing\TodoistSdk\Data\FileAttachment;
+use JustSteveKing\TodoistSdk\Data\Label;
+use JustSteveKing\TodoistSdk\Data\Project;
+use JustSteveKing\TodoistSdk\Data\Section;
 use JustSteveKing\TodoistSdk\Data\Task;
+use JustSteveKing\TodoistSdk\Inputs\Color;
+use JustSteveKing\TodoistSdk\Inputs\LabelChanges;
+use JustSteveKing\TodoistSdk\Inputs\NewComment;
+use JustSteveKing\TodoistSdk\Inputs\NewLabel;
+use JustSteveKing\TodoistSdk\Inputs\NewProject;
+use JustSteveKing\TodoistSdk\Inputs\NewSection;
 use JustSteveKing\TodoistSdk\Inputs\NewTask;
+use JustSteveKing\TodoistSdk\Inputs\ProjectChanges;
+use JustSteveKing\TodoistSdk\Inputs\SectionChanges;
 use JustSteveKing\TodoistSdk\Inputs\TaskChanges;
+use JustSteveKing\TodoistSdk\Inputs\ViewStyle;
 
 /**
  * The SDK against Todoist's OpenAPI spec (spec/todoist-openapi.json), so a
@@ -33,11 +48,28 @@ function requestSchema(string $path, string $method): string
     return basename(is_string($ref) ? $ref : '');
 }
 
-it('maps every field of the spec\'s task, and nothing else', function (): void {
-    $parameters = array_map(fn (ReflectionParameter $p): string => $p->getName(), (new ReflectionClass(Task::class))->getConstructor()?->getParameters() ?? []);
+/**
+ * @param  class-string  $class
+ * @return list<string>
+ */
+function parameters(string $class): array
+{
+    return array_map(fn (ReflectionParameter $p): string => $p->getName(), (new ReflectionClass($class))->getConstructor()?->getParameters() ?? []);
+}
 
-    expect($parameters)->toEqualCanonicalizing(array_map(camel(...), properties('ItemSyncView')));
-});
+it('maps every field of the spec\'s models, and nothing else', function (string $class, array $schemas): void {
+    $fields = array_values(array_unique(array_merge(...array_map(properties(...), $schemas))));
+
+    expect(parameters($class))->toEqualCanonicalizing(array_map(camel(...), $fields));
+})->with([
+    'task' => [Task::class, ['ItemSyncView']],
+    'project, personal or workspace' => [Project::class, ['PersonalProjectSyncView', 'WorkspaceProjectSyncView']],
+    'section' => [Section::class, ['SectionSyncView']],
+    'label' => [Label::class, ['LabelRestView']],
+    'comment, on a task or a project' => [Comment::class, ['ItemNoteSyncView', 'ProjectNoteSyncView']],
+    'collaborator' => [Collaborator::class, ['Collaborator']],
+    'file attachment, as an upload returns it' => [FileAttachment::class, ['UploadResult']],
+]);
 
 it('sends only fields the spec accepts when creating a task', function (): void {
     $everything = new NewTask('x', 'd', 'p', 's', 'pa', 1, ['l'], 4, 1, 'tomorrow', '2026-11-16', '2026-11-16T09:00:00Z', 'en', 30, 'minute', '2026-11-20');
@@ -51,4 +83,29 @@ it('sends only fields the spec accepts when updating a task', function (): void 
         ->assignTo(1)->duration(30, 'minute')->deadline('2026-11-20')->collapsed();
 
     expect(array_diff(array_keys($everything->toArray()), properties(requestSchema('/api/v1/tasks/{task_id}', 'post'))))->toBe([]);
+});
+
+it('sends only fields the spec accepts', function (array $body, string $path): void {
+    expect(array_diff(array_keys($body), properties(requestSchema($path, 'post'))))->toBe([]);
+})->with([
+    'new project' => fn (): array => [(new NewProject('x', 'd', 'p', Color::Teal, 'lightbulb', true, ViewStyle::Board, 1))->toArray(), '/api/v1/projects'],
+    'project changes' => fn (): array => [ProjectChanges::new()->name('x')->description('d')->color(Color::Red)->icon('flag')->favorite()
+        ->viewStyle(ViewStyle::List)->order(1)->collapsed()->folder(1)->toArray(), '/api/v1/projects/{project_id}'],
+    'new section' => fn (): array => [(new NewSection('x', 'p', 'd', 1))->toArray(), '/api/v1/sections'],
+    'section changes' => fn (): array => [SectionChanges::new()->name('x')->description('d')->order(1)->collapsed()->toArray(), '/api/v1/sections/{section_id}'],
+    'new label' => fn (): array => [(new NewLabel('x', Color::Grey, 1, true))->toArray(), '/api/v1/labels'],
+    'label changes' => fn (): array => [LabelChanges::new()->name('x')->color(Color::Red)->order(1)->favorite()->toArray(), '/api/v1/labels/{label_id}'],
+    'comment on a task' => fn (): array => [NewComment::onTask('t', 'x', [1], new FileAttachment('u'))->toArray(), '/api/v1/comments'],
+    'comment on a project' => fn (): array => [NewComment::onProject('p', 'x')->toArray(), '/api/v1/comments'],
+]);
+
+it('knows every colour Todoist accepts', function (): void {
+    $colours = spec()['components']['schemas']['APIColorID']['anyOf'][0]['enum'] ?? [];
+
+    expect(array_map(fn (Color $c): string => $c->value, Color::cases()))->toEqualCanonicalizing($colours);
+});
+
+it('knows every view style Todoist accepts', function (): void {
+    expect(array_map(fn (ViewStyle $v): string => $v->value, ViewStyle::cases()))
+        ->toEqualCanonicalizing(spec()['components']['schemas']['ProjectViewStyleV1']['enum'] ?? []);
 });
