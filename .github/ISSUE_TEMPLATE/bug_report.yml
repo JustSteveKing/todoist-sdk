@@ -1,0 +1,39 @@
+name: Bug report
+description: The SDK sends or reads something differently from what Todoist's API does.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you called, what you expected, and what happened instead. Include the exception message if there was one.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: How to reproduce it
+      description: The smallest code that shows the problem, or a failing test. Leave out your token, client secret and anyone's personal data.
+      render: php
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: todoist-sdk version
+      placeholder: 0.0.1
+    validations:
+      required: true
+  - type: input
+    id: php
+    attributes:
+      label: PHP version
+      placeholder: "8.4"
+    validations:
+      required: true
+  - type: input
+    id: client
+    attributes:
+      label: PSR-18 client
+      description: Which HTTP client is underneath, and its version.
+      placeholder: symfony/http-client 8.1

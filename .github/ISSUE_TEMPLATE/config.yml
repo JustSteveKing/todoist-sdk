@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Todoist's API documentation
+    url: https://developer.todoist.com/api/v1/
+    about: What each endpoint does, as Todoist documents it. This SDK isn't run by Todoist, so questions about the API itself go to Todoist.
+  - name: Report a security vulnerability
+    url: https://github.com/JustSteveKing/todoist-sdk/security/advisories/new
+    about: Please report security problems privately, not as an issue.

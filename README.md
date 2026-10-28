@@ -1,10 +1,16 @@
 # PHP SDK for Todoist
 
+[![CI](https://github.com/JustSteveKing/todoist-sdk/actions/workflows/ci.yml/badge.svg)](https://github.com/JustSteveKing/todoist-sdk/actions/workflows/ci.yml)
+[![Spec drift](https://github.com/JustSteveKing/todoist-sdk/actions/workflows/spec.yml/badge.svg)](https://github.com/JustSteveKing/todoist-sdk/actions/workflows/spec.yml)
+[![PHPStan](https://img.shields.io/badge/PHPStan-level%20max-brightgreen.svg)](phpstan.neon)
+[![Licence](https://img.shields.io/badge/licence-MIT-blue.svg)](LICENSE.md)
+[![Sponsor](https://img.shields.io/github/sponsors/JustSteveKing?label=sponsor&logo=githubsponsors)](https://github.com/sponsors/JustSteveKing)
+
 A PHP client for [Todoist's API v1](https://developer.todoist.com/api/v1), built on [sdk-toolbox](https://github.com/JustSteveKing/sdk-toolbox).
 
 > This package is not created by, affiliated with, or supported by Todoist.
 
-It's early. Tasks, projects, sections, labels, comments, uploads, the user and OAuth are covered today; webhooks are on the way.
+It covers tasks, projects, sections, labels, comments, uploads, the user, OAuth and webhooks. Still to come: completed tasks, quick add, task filters, comment reactions, and the rest of API v1 (reminders, filters, folders, templates, workspaces, backups and activity).
 
 ## Installing
 
@@ -134,6 +140,25 @@ Todoist rotates refresh tokens, and treats a spent one sent again after 60 secon
 
 `$oauth->revoke($accessToken)` revokes a token, and `TodoistOAuth::register()` registers a client at runtime (RFC 7591) for apps that can't use the console, such as MCP servers.
 
+## Webhooks
+
+Todoist signs every delivery with your app's client secret. Verify it before you trust anything in it:
+
+```php
+use JustSteveKing\TodoistSdk\Webhooks\Event;
+use JustSteveKing\TodoistSdk\Webhooks\TodoistWebhooks;
+
+$event = (new TodoistWebhooks($clientSecret))->receive($request); // a PSR-7 request
+
+if ($event->is(Event::TaskCompleted)) {
+    $task = $todoist->tasks()->get($event->objectId());
+}
+```
+
+A bad or missing signature throws `InvalidSignatureException`. `$event->data` is the changed object as Todoist sent it, an array rather than a model: its shape follows the webhook version you picked in Todoist's console, not API v1. Todoist says webhooks can arrive late, out of order or not at all, so fetch the object when you need its current state.
+
+There's no timestamp in the signature, and a failed delivery comes again with the same `$event->deliveryId`, so record the IDs you've handled and skip repeats. Answer with a 200; anything else and Todoist tries again in 15 minutes, up to three times.
+
 ## When things go wrong
 
 Failures throw sdk-toolbox's status exceptions, so a missing task is a `NotFoundException` and a bad token is an `UnauthorizedException`. Todoist's own error details are one call away:
@@ -168,7 +193,11 @@ $todoist = new Todoist('test-token', $http);
 
 ## Built against the spec
 
-The models are checked against Todoist's own OpenAPI spec, kept in `spec/`. A field the API has and the SDK lacks fails the test suite.
+The models are checked against Todoist's own OpenAPI spec, kept in `spec/`. A field the API has and the SDK lacks fails the test suite, and a weekly job compares that copy with what Todoist publishes.
+
+## Contributing
+
+Issues and pull requests are welcome; [CONTRIBUTING.md](CONTRIBUTING.md) says how the SDK is built. Report security problems privately, as [SECURITY.md](SECURITY.md) describes.
 
 ## Licence
 

@@ -1,0 +1,23 @@
+name: Missing endpoint or feature
+description: Something Todoist's API does that the SDK doesn't cover yet.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What you're trying to do
+      description: What you want to do with Todoist from PHP, and what gets in the way.
+    validations:
+      required: true
+  - type: input
+    id: endpoint
+    attributes:
+      label: The endpoint
+      description: Its method and path in Todoist's API v1, if it's one endpoint.
+      placeholder: GET /api/v1/tasks/completed/by_completion_date
+  - type: textarea
+    id: proposal
+    attributes:
+      label: How you'd like to call it
+      description: Ideally as a short code sample.
+      render: php
