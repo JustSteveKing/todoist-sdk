@@ -1,7 +1,13 @@
 {
     "name": "juststeveking/todoist-sdk",
     "description": "PHP SDK for Todoist's API v1, built on sdk-toolbox. Not created by, affiliated with, or supported by Todoist.",
-    "keywords": ["todoist", "sdk", "api", "php", "psr-18"],
+    "keywords": [
+        "todoist",
+        "sdk",
+        "api",
+        "php",
+        "psr-18"
+    ],
     "license": "MIT",
     "type": "library",
     "authors": [
@@ -45,6 +51,8 @@
         "test": "pest",
         "analyse": "phpstan analyse --memory-limit=1G",
         "format": "pint",
-        "lint": "pint --test"
+        "lint": "pint --test",
+        "spec:check": "php bin/spec check",
+        "spec:update": "php bin/spec update"
     }
 }

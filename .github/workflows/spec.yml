@@ -1,0 +1,28 @@
+name: Spec drift
+
+# Todoist changes its API without versioning every change. Once a week,
+# compare its published OpenAPI spec with the copy the contract tests
+# read, and fail when they differ so the run shows up red.
+
+on:
+  schedule:
+    - cron: '23 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Compare with developer.todoist.com
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          coverage: none
+
+      - run: php bin/spec check

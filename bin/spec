@@ -1,0 +1,169 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+/*
+ * Compares Todoist's published OpenAPI spec with the copy in spec/, which
+ * the SDK's contract tests read.
+ *
+ *     php bin/spec check    exits 1, listing what changed, when they differ
+ *     php bin/spec update   replaces spec/todoist-openapi.json
+ *
+ * Todoist doesn't publish the spec as a file. It's embedded in the Redoc
+ * page at developer.todoist.com/api/v1, as `const __redoc_state = {...};`,
+ * with the spec at `spec.data`.
+ */
+
+const SOURCE = 'https://developer.todoist.com/api/v1/';
+const COPY = __DIR__.'/../spec/todoist-openapi.json';
+
+/**
+ * The schemas the SDK maps. A change to one of these can break the SDK;
+ * a change anywhere else might be something to add.
+ */
+const MAPPED = [
+    'ItemSyncView', 'PersonalProjectSyncView', 'WorkspaceProjectSyncView', 'SectionSyncView', 'LabelRestView',
+    'ItemNoteSyncView', 'ProjectNoteSyncView', 'Collaborator', 'UploadResult', 'UserJSON', 'UserStatus',
+];
+
+/**
+ * @return array<string, mixed>
+ */
+function published(): array
+{
+    $html = @file_get_contents(SOURCE, context: stream_context_create(['http' => ['timeout' => 30, 'user_agent' => 'todoist-sdk-php spec check']]));
+
+    if ($html === false) {
+        fail('Could not fetch '.SOURCE);
+    }
+
+    $marker = 'const __redoc_state = ';
+    $start = strpos($html, $marker);
+    $end = $start === false ? false : strpos($html, 'var container', $start);
+
+    if ($start === false || $end === false) {
+        fail('The docs page no longer embeds __redoc_state where it used to; the extraction needs updating.');
+    }
+
+    $state = json_decode(rtrim(substr($html, $start + strlen($marker), $end - $start - strlen($marker)), " \n;"), true);
+
+    if (! is_array($state) || ! is_array($state['spec']['data'] ?? null)) {
+        fail('__redoc_state no longer holds the spec at spec.data; the extraction needs updating.');
+    }
+
+    return $state['spec']['data'];
+}
+
+/**
+ * @return array<string, mixed>
+ */
+function copy_(): array
+{
+    $spec = json_decode((string) file_get_contents(COPY), true);
+
+    return is_array($spec) ? $spec : [];
+}
+
+/**
+ * @param  array<string, mixed>  $spec
+ * @return list<string>
+ */
+function operations(array $spec): array
+{
+    $operations = [];
+
+    foreach ((array) ($spec['paths'] ?? []) as $path => $methods) {
+        foreach ((array) $methods as $method => $operation) {
+            if (in_array($method, ['get', 'post', 'put', 'patch', 'delete'], true)) {
+                $operations[] = strtoupper($method).' '.$path;
+            }
+        }
+    }
+
+    sort($operations);
+
+    return $operations;
+}
+
+/**
+ * @param  array<string, mixed>  $spec
+ * @return array<string, string>  property => its JSON, so a changed type shows as changed
+ */
+function properties(array $spec, string $schema): array
+{
+    $properties = [];
+
+    foreach ((array) ($spec['components']['schemas'][$schema]['properties'] ?? []) as $name => $definition) {
+        unset($definition['description'], $definition['examples'], $definition['title']);
+        $properties[(string) $name] = (string) json_encode($definition);
+    }
+
+    return $properties;
+}
+
+function fail(string $message): never
+{
+    fwrite(STDERR, $message.PHP_EOL);
+
+    exit(2);
+}
+
+$command = $argv[1] ?? 'check';
+$published = published();
+
+if ($command === 'update') {
+    file_put_contents(COPY, json_encode($published, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR).PHP_EOL);
+    echo 'Updated spec/todoist-openapi.json. Run the tests: the contract tests show what the SDK needs to change.'.PHP_EOL;
+
+    exit(0);
+}
+
+if ($command !== 'check') {
+    fail('Usage: php bin/spec [check|update]');
+}
+
+$current = copy_();
+
+if ($published == $current) {
+    echo 'The SDK is built against the published spec.'.PHP_EOL;
+
+    exit(0);
+}
+
+$report = [];
+
+foreach (array_diff(operations($published), operations($current)) as $operation) {
+    $report[] = "+ {$operation}";
+}
+
+foreach (array_diff(operations($current), operations($published)) as $operation) {
+    $report[] = "- {$operation}";
+}
+
+foreach (MAPPED as $schema) {
+    $new = properties($published, $schema);
+    $old = properties($current, $schema);
+
+    foreach (array_diff_key($new, $old) as $name => $definition) {
+        $report[] = "+ {$schema}.{$name}";
+    }
+
+    foreach (array_diff_key($old, $new) as $name => $definition) {
+        $report[] = "- {$schema}.{$name}";
+    }
+
+    foreach (array_intersect_key($new, $old) as $name => $definition) {
+        if ($definition !== $old[$name]) {
+            $report[] = "~ {$schema}.{$name}";
+        }
+    }
+}
+
+echo 'Todoist\'s published spec differs from spec/todoist-openapi.json.'.PHP_EOL;
+echo $report === []
+    ? 'Nothing the SDK maps has changed, and no operations were added or removed: descriptions, examples or other schemas did.'.PHP_EOL
+    : implode(PHP_EOL, $report).PHP_EOL;
+echo 'Run `php bin/spec update`, then the tests.'.PHP_EOL;
+
+exit(1);
