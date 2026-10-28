@@ -20,8 +20,9 @@ body:
   - type: input
     id: version
     attributes:
-      label: todoist-sdk version
-      placeholder: 0.0.1
+      label: todoist-sdk commit
+      description: There are no releases; the commit you're on, from `composer show juststeveking/todoist-sdk`.
+      placeholder: dev-main 60de2f8
     validations:
       required: true
   - type: input

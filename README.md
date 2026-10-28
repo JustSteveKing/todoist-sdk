@@ -6,19 +6,33 @@
 [![Licence](https://img.shields.io/badge/licence-MIT-blue.svg)](LICENSE.md)
 [![Sponsor](https://img.shields.io/github/sponsors/JustSteveKing?label=sponsor&logo=githubsponsors)](https://github.com/sponsors/JustSteveKing)
 
-A PHP client for [Todoist's API v1](https://developer.todoist.com/api/v1), built on [sdk-toolbox](https://github.com/JustSteveKing/sdk-toolbox).
+A PHP client for [Todoist's API v1](https://developer.todoist.com/api/v1), built to show what an SDK on [sdk-toolbox](https://github.com/JustSteveKing/sdk-toolbox) looks like against a real API.
 
 > This package is not created by, affiliated with, or supported by Todoist.
 
 It covers tasks, projects, sections, labels, comments, uploads, the user, OAuth and webhooks. Still to come: completed tasks, quick add, task filters, comment reactions, and the rest of API v1 (reminders, filters, folders, templates, workspaces, backups and activity).
 
-## Installing
+## A demonstration, not a release
+
+This isn't released or on Packagist. It's here to show sdk-toolbox doing real work: OAuth with rotating refresh tokens, cursor pagination, Todoist's own error shape, webhook signatures, and models checked against the API's OpenAPI spec. Read the code alongside sdk-toolbox's docs, or run it.
+
+To run the tests:
 
 ```bash
-composer require juststeveking/todoist-sdk
+git clone https://github.com/JustSteveKing/todoist-sdk.git
+cd todoist-sdk
+composer install
+composer test
 ```
 
-You'll need PHP 8.3 or later and a PSR-18 HTTP client. If you don't already have one, `symfony/http-client` and `nyholm/psr7` will do.
+To try it from your own project, add the repository and require the main branch:
+
+```bash
+composer config repositories.todoist-sdk vcs https://github.com/JustSteveKing/todoist-sdk
+composer require juststeveking/todoist-sdk:dev-main
+```
+
+You'll need PHP 8.3 or later and a PSR-18 HTTP client. If you don't already have one, `symfony/http-client` and `nyholm/psr7` will do. Expect it to change without notice.
 
 ## Getting started
 

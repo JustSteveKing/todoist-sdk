@@ -2,11 +2,7 @@
 
 ## Supported versions
 
-The SDK is at 0.x. Security fixes go into the latest release only.
-
-| Version | Supported |
-|---|---|
-| 0.0.x (latest) | yes |
+There are no releases: this SDK is a demonstration of sdk-toolbox. Fixes go onto `main`.
 
 ## Reporting a vulnerability
 
