@@ -5,12 +5,9 @@ declare(strict_types=1);
 namespace JustSteveKing\TodoistSdk\Errors;
 
 use JsonException;
-use JustSteveKing\SdkToolbox\Errors\ExceptionMapper;
-use JustSteveKing\SdkToolbox\Errors\HttpException;
 use JustSteveKing\SdkToolbox\Errors\ProblemDetails;
 use JustSteveKing\SdkToolbox\Errors\StatusExceptions;
 use JustSteveKing\SdkToolbox\Http\Response;
-use JustSteveKing\SdkToolbox\Redaction\Redactor;
 
 /**
  * Todoist's errors, read into the toolbox's exceptions.
@@ -21,22 +18,20 @@ use JustSteveKing\SdkToolbox\Redaction\Redactor;
  *      "error_extra": {"event_id": "78c3…", "retry_after": 5}, "http_code": 401}
  *
  * So the status still picks the exception (a 404 is a NotFoundException,
- * and so on), and Todoist's fields are carried on its problem, where
+ * and so on), through sdk-toolbox's StatusExceptions, and this reads
+ * Todoist's fields into the problem every exception carries, where
  * TodoistError::of() reads them back.
  *
  * @internal
  */
-final readonly class TodoistErrors implements ExceptionMapper
+final readonly class TodoistErrors
 {
-    public function map(Response $response, Redactor $redactor): HttpException
+    public static function mapper(): StatusExceptions
     {
-        $exception = (new StatusExceptions)->map($response, $redactor);
-        $problem = self::problem($response);
-
-        return $problem === null ? $exception : new ($exception::class)($response, $problem, $redactor);
+        return new StatusExceptions(problems: self::problem(...));
     }
 
-    private static function problem(Response $response): ?ProblemDetails
+    public static function problem(Response $response): ?ProblemDetails
     {
         try {
             $body = json_decode($response->body(), true, 512, JSON_THROW_ON_ERROR);

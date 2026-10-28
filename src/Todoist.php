@@ -69,7 +69,7 @@ final class Todoist extends Connector
             auth: is_string($token) ? new BearerToken($token) : $token,
             http: $http,
             userAgent: 'todoist-sdk-php/'.self::VERSION,
-            exceptions: new TodoistErrors,
+            exceptions: TodoistErrors::mapper(),
             retry: $retry,
             clock: $clock,
             sleeper: $sleeper,

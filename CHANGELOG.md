@@ -14,6 +14,7 @@ Every notable change to this package. The format follows [Keep a Changelog](http
 
 ### Changed
 
-- Requires sdk-toolbox `^0.0.2`. OAuth now uses the toolbox's `RefreshingToken` with `rotating: true`, its comma scope separator and its RFC 7591 registration, in place of the SDK's own copies. `refreshing()` returns a `RefreshingToken`, and `register()` a toolbox `RegisteredClient`.
+- Requires sdk-toolbox `^0.0.3`, whose `StatusExceptions` reads Todoist's error shape directly, in place of a mapper that rebuilt each exception.
+- From sdk-toolbox `^0.0.2`: OAuth now uses the toolbox's `RefreshingToken` with `rotating: true`, its comma scope separator and its RFC 7591 registration, in place of the SDK's own copies. `refreshing()` returns a `RefreshingToken`, and `register()` a toolbox `RegisteredClient`.
 
 [Unreleased]: https://github.com/JustSteveKing/todoist-sdk/commits/main
