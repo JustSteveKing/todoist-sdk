@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace JustSteveKing\TodoistSdk;
 
+use JustSteveKing\SdkToolbox\Auth\Authenticator;
 use JustSteveKing\SdkToolbox\Auth\BearerToken;
 use JustSteveKing\SdkToolbox\Connector;
 use JustSteveKing\SdkToolbox\Hydration\Hydrator;
@@ -13,12 +14,15 @@ use JustSteveKing\SdkToolbox\Retries\RetryStrategy;
 use JustSteveKing\SdkToolbox\Time\Sleeper;
 use JustSteveKing\SdkToolbox\Time\SystemClock;
 use JustSteveKing\SdkToolbox\Time\SystemSleeper;
+use JustSteveKing\TodoistSdk\Data\User;
 use JustSteveKing\TodoistSdk\Errors\TodoistErrors;
+use JustSteveKing\TodoistSdk\Requests\User\GetUser;
 use JustSteveKing\TodoistSdk\Resources\Comments;
 use JustSteveKing\TodoistSdk\Resources\Labels;
 use JustSteveKing\TodoistSdk\Resources\Projects;
 use JustSteveKing\TodoistSdk\Resources\Sections;
 use JustSteveKing\TodoistSdk\Resources\Tasks;
+use JustSteveKing\TodoistSdk\Resources\Uploads;
 use Psr\Clock\ClockInterface;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Http\Client\ClientInterface;
@@ -38,7 +42,9 @@ use SensitiveParameter;
  *     }
  *
  * The token is a personal API token from Todoist's integration settings,
- * or an OAuth access token.
+ * or an OAuth access token. For a user who authorised your app, pass the
+ * authenticator TodoistOAuth::refreshing() gives you instead, and the
+ * token stays fresh.
  */
 final class Todoist extends Connector
 {
@@ -47,7 +53,7 @@ final class Todoist extends Connector
     public const string BASE_URI = 'https://api.todoist.com/api/v1';
 
     public function __construct(
-        #[SensitiveParameter] string $token,
+        #[SensitiveParameter] string|Authenticator $token,
         ?ClientInterface $http = null,
         RetryStrategy $retry = new RetryPolicy,
         ?CacheInterface $cache = null,
@@ -60,7 +66,7 @@ final class Todoist extends Connector
     ) {
         parent::__construct(
             baseUri: $baseUri,
-            auth: new BearerToken($token),
+            auth: is_string($token) ? new BearerToken($token) : $token,
             http: $http,
             userAgent: 'todoist-sdk-php/'.self::VERSION,
             exceptions: new TodoistErrors,
@@ -72,6 +78,14 @@ final class Todoist extends Connector
             logger: $logger,
             events: $events,
         );
+    }
+
+    /**
+     * The user the token belongs to.
+     */
+    public function user(): User
+    {
+        return $this->send(new GetUser);
     }
 
     public function tasks(): Tasks
@@ -97,5 +111,10 @@ final class Todoist extends Connector
     public function comments(): Comments
     {
         return new Comments($this);
+    }
+
+    public function uploads(): Uploads
+    {
+        return new Uploads($this);
     }
 }

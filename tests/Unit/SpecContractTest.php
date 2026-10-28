@@ -9,6 +9,8 @@ use JustSteveKing\TodoistSdk\Data\Label;
 use JustSteveKing\TodoistSdk\Data\Project;
 use JustSteveKing\TodoistSdk\Data\Section;
 use JustSteveKing\TodoistSdk\Data\Task;
+use JustSteveKing\TodoistSdk\Data\User;
+use JustSteveKing\TodoistSdk\Data\UserStatus;
 use JustSteveKing\TodoistSdk\Inputs\Color;
 use JustSteveKing\TodoistSdk\Inputs\LabelChanges;
 use JustSteveKing\TodoistSdk\Inputs\NewComment;
@@ -20,6 +22,7 @@ use JustSteveKing\TodoistSdk\Inputs\ProjectChanges;
 use JustSteveKing\TodoistSdk\Inputs\SectionChanges;
 use JustSteveKing\TodoistSdk\Inputs\TaskChanges;
 use JustSteveKing\TodoistSdk\Inputs\ViewStyle;
+use JustSteveKing\TodoistSdk\OAuth\Scope;
 
 /**
  * The SDK against Todoist's OpenAPI spec (spec/todoist-openapi.json), so a
@@ -69,7 +72,17 @@ it('maps every field of the spec\'s models, and nothing else', function (string 
     'comment, on a task or a project' => [Comment::class, ['ItemNoteSyncView', 'ProjectNoteSyncView']],
     'collaborator' => [Collaborator::class, ['Collaborator']],
     'file attachment, as an upload returns it' => [FileAttachment::class, ['UploadResult']],
+    'user status' => [UserStatus::class, ['UserStatus']],
 ]);
+
+it('maps every field of the spec\'s user but the ones left out on purpose', function (): void {
+    // The user's API token, twice, a device push token, and two objects
+    // the spec leaves untyped. User's docblock says why.
+    $omitted = ['token', 'websocket_url', 'urgent_reminder_device', 'features', 'joinable_workspace'];
+
+    expect(array_intersect($omitted, properties('UserJSON')))->toEqualCanonicalizing($omitted)
+        ->and(parameters(User::class))->toEqualCanonicalizing(array_map(camel(...), array_values(array_diff(properties('UserJSON'), $omitted))));
+});
 
 it('sends only fields the spec accepts when creating a task', function (): void {
     $everything = new NewTask('x', 'd', 'p', 's', 'pa', 1, ['l'], 4, 1, 'tomorrow', '2026-11-16', '2026-11-16T09:00:00Z', 'en', 30, 'minute', '2026-11-20');
@@ -103,6 +116,21 @@ it('knows every colour Todoist accepts', function (): void {
     $colours = spec()['components']['schemas']['APIColorID']['anyOf'][0]['enum'] ?? [];
 
     expect(array_map(fn (Color $c): string => $c->value, Color::cases()))->toEqualCanonicalizing($colours);
+});
+
+it('knows every OAuth scope Todoist documents', function (): void {
+    $guide = '';
+
+    foreach (spec()['tags'] ?? [] as $tag) {
+        if (($tag['name'] ?? null) === 'Authorization') {
+            $guide = (string) $tag['description'];
+        }
+    }
+
+    $section = (string) strstr(strstr($guide, '#### Permission scopes') ?: '', '#### Potential errors', true);
+    preg_match_all('/^\| ([a-z_]+:[a-z_]+)\s+\|/m', $section, $matches);
+
+    expect(array_map(fn (Scope $s): string => $s->value, Scope::cases()))->toEqualCanonicalizing($matches[1]);
 });
 
 it('knows every view style Todoist accepts', function (): void {

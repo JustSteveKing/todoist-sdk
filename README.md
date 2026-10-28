@@ -4,7 +4,7 @@ A PHP client for [Todoist's API v1](https://developer.todoist.com/api/v1), built
 
 > This package is not created by, affiliated with, or supported by Todoist.
 
-It's early. Tasks, projects, sections, labels and comments are covered today; OAuth, uploads and webhooks are on the way.
+It's early. Tasks, projects, sections, labels, comments, uploads, the user and OAuth are covered today; webhooks are on the way.
 
 ## Installing
 
@@ -81,6 +81,58 @@ $todoist->comments()->create(NewComment::onTask('6XGgmFVcrG5RRjVr', 'Need one bo
 Personal and workspace projects come back as the same `Project`. The fields only a workspace project has are null on a personal one, so `$project->workspaceId !== null` tells you which you've got.
 
 Shared labels are only names on tasks shared with you, so they have their own methods: `labels()->shared()`, `renameShared()` and `removeShared()`.
+
+## Uploads and the user
+
+```php
+use JustSteveKing\TodoistSdk\Inputs\NewComment;
+use JustSteveKing\TodoistSdk\Inputs\Upload;
+
+$file = $todoist->uploads()->upload(Upload::fromPath('/tmp/quote.pdf', 'application/pdf'));
+$todoist->comments()->create(NewComment::onTask($task->id, 'The quote', attachment: $file));
+
+$me = $todoist->user();
+echo $me->fullName, ' (', $me->tzInfo->timezone, ')';
+```
+
+`User` leaves out the user's own API token, which Todoist sends back in `/user`, so it can't end up in a dump or a log.
+
+## Signing users in with OAuth
+
+A personal token is fine for your own account. For other people's, register an app in Todoist's App Management Console and use `TodoistOAuth`:
+
+```php
+use JustSteveKing\TodoistSdk\OAuth\Scope;
+use JustSteveKing\TodoistSdk\OAuth\TodoistOAuth;
+
+$oauth = new TodoistOAuth($clientId, $clientSecret);
+
+// Send the user to Todoist, keeping what start() returns in their session.
+$started = $oauth->start('https://app.test/oauth/todoist', Scope::DataReadWrite);
+$session->put('todoist_oauth', $started);
+
+return redirect($started->url);
+```
+
+When they come back:
+
+```php
+$token = $oauth->exchange('https://app.test/oauth/todoist', $session->pull('todoist_oauth'), $request->query('code'), $request->query('state'));
+
+$store->put("todoist:{$user->id}", $token);
+```
+
+From then on, give the client an authenticator instead of a token, and it keeps the token fresh:
+
+```php
+$todoist = new Todoist($oauth->refreshing("todoist:{$user->id}", $store));
+```
+
+`$store` is any sdk-toolbox `TokenStore`: `new Psr16TokenStore($cache)` for a web app. PKCE and the `state` check happen on every flow. Leave the secret out for a public client, such as a CLI.
+
+Todoist rotates refresh tokens, and treats a spent one sent again after 60 seconds as a replay, revoking every token the user gave your app. `refreshing()` never sends a spent one: if a refresh reply comes back without a new refresh token, the user signs in again when that token expires.
+
+`$oauth->revoke($accessToken)` revokes a token, and `TodoistOAuth::register()` registers a client at runtime (RFC 7591) for apps that can't use the console, such as MCP servers.
 
 ## When things go wrong
 
