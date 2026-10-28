@@ -11,9 +11,12 @@ use JustSteveKing\SdkToolbox\Auth\OAuth\AccessToken;
 use JustSteveKing\SdkToolbox\Auth\OAuth\AuthorizationCode;
 use JustSteveKing\SdkToolbox\Auth\OAuth\AuthorizationRequest;
 use JustSteveKing\SdkToolbox\Auth\OAuth\ClientAuthentication;
+use JustSteveKing\SdkToolbox\Auth\OAuth\ClientRegistration as Registration;
 use JustSteveKing\SdkToolbox\Auth\OAuth\OAuthClient;
 use JustSteveKing\SdkToolbox\Auth\OAuth\ProcessLock;
+use JustSteveKing\SdkToolbox\Auth\OAuth\RefreshingToken;
 use JustSteveKing\SdkToolbox\Auth\OAuth\RefreshLock;
+use JustSteveKing\SdkToolbox\Auth\OAuth\RegisteredClient;
 use JustSteveKing\SdkToolbox\Auth\OAuth\TokenStore;
 use JustSteveKing\SdkToolbox\Errors\InvalidRequestException;
 use JustSteveKing\SdkToolbox\Errors\OAuthException;
@@ -94,6 +97,8 @@ final readonly class TodoistOAuth
             requests: $this->requests,
             streams: $this->streams,
             clock: $clock,
+            // Todoist reads the scope parameter as a comma-separated list.
+            scopeSeparator: ',',
         );
     }
 
@@ -110,15 +115,7 @@ final readonly class TodoistOAuth
         ?RequestFactoryInterface $requests = null,
         ?StreamFactoryInterface $streams = null,
     ): RegisteredClient {
-        $requests ??= Psr17FactoryDiscovery::findRequestFactory();
-        $streams ??= Psr17FactoryDiscovery::findStreamFactory();
-
-        $request = $requests->createRequest('POST', self::REGISTER)
-            ->withHeader('Accept', 'application/json')
-            ->withHeader('Content-Type', 'application/json')
-            ->withBody($streams->createStream(json_encode($registration->toArray(), JSON_THROW_ON_ERROR)));
-
-        return RegisteredClient::fromResponse(self::call($http ?? Psr18ClientDiscovery::find(), $request));
+        return (new Registration(self::REGISTER, $http, $requests, $streams))->register($registration->toMetadata());
     }
 
     /**
@@ -140,11 +137,7 @@ final readonly class TodoistOAuth
      */
     public function start(string $redirectUri, Scope ...$scopes): AuthorizationRequest
     {
-        // Todoist reads the scope parameter as a comma-separated list,
-        // where RFC 6749 section 3.3 has spaces; one entry keeps the commas.
-        $scope = implode(',', array_map(static fn (Scope $scope): string => $scope->value, $scopes));
-
-        return (new AuthorizationCode($this->client, $redirectUri))->start($scope === '' ? [] : [$scope]);
+        return (new AuthorizationCode($this->client, $redirectUri))->start(array_map(static fn (Scope $scope): string => $scope->value, array_values($scopes)));
     }
 
     /**
@@ -159,12 +152,17 @@ final readonly class TodoistOAuth
     }
 
     /**
-     * An authenticator for one user's stored token, refreshing it as
-     * Todoist's rotating refresh tokens need.
+     * An authenticator for one user's stored token, kept fresh.
+     *
+     * Todoist rotates refresh tokens. A refresh retried within 60 seconds
+     * gets the same access token back without a refresh token, because
+     * the old one is spent; sent again later, that reads as a replay and
+     * Todoist revokes every token the user gave the app. `rotating: true`
+     * makes sure it's never sent again: the user authorises again instead.
      */
-    public function refreshing(string $key, TokenStore $store, RefreshLock $lock = new ProcessLock): RefreshingTodoistToken
+    public function refreshing(string $key, TokenStore $store, RefreshLock $lock = new ProcessLock): RefreshingToken
     {
-        return new RefreshingTodoistToken($this->client, $key, $store, $lock);
+        return new RefreshingToken($this->client, $key, $store, $lock, rotating: true);
     }
 
     /**
@@ -206,9 +204,8 @@ final readonly class TodoistOAuth
     }
 
     /**
-     * Sends one of the OAuth requests the toolbox doesn't, and reads
-     * either error shape Todoist uses there: RFC 6749's `error`, or its
-     * API's `error_tag`.
+     * Sends the revocation, and reads either error shape Todoist uses
+     * there: RFC 6749's `error`, or its API's `error_tag`.
      *
      * @return array<array-key, mixed>
      */

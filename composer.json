@@ -19,7 +19,7 @@
     "require": {
         "php": "^8.3",
         "cuyz/valinor": "^2.6",
-        "juststeveking/sdk-toolbox": "^0.0.1"
+        "juststeveking/sdk-toolbox": "^0.0.2"
     },
     "require-dev": {
         "laravel/pint": "^1.25",

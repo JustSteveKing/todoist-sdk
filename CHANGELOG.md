@@ -12,4 +12,8 @@ Every notable change to this package. The format follows [Keep a Changelog](http
 - Webhook verification and parsing.
 - `bin/spec`, and a weekly workflow, to catch drift from Todoist's published spec.
 
+### Changed
+
+- Requires sdk-toolbox `^0.0.2`. OAuth now uses the toolbox's `RefreshingToken` with `rotating: true`, its comma scope separator and its RFC 7591 registration, in place of the SDK's own copies. `refreshing()` returns a `RefreshingToken`, and `register()` a toolbox `RegisteredClient`.
+
 [Unreleased]: https://github.com/JustSteveKing/todoist-sdk/commits/main

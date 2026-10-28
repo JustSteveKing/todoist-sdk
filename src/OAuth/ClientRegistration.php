@@ -4,8 +4,12 @@ declare(strict_types=1);
 
 namespace JustSteveKing\TodoistSdk\OAuth;
 
+use JustSteveKing\SdkToolbox\Auth\OAuth\ClientMetadata;
+
 /**
- * A client to register at runtime (RFC 7591).
+ * A client to register at runtime (RFC 7591), with Todoist's defaults:
+ * refresh tokens on, and the secret sent in the body. It becomes
+ * sdk-toolbox's ClientMetadata, which does the registering.
  *
  * Redirect URIs must be HTTPS (localhost is allowed for testing), up to
  * ten. A public client gets no secret and authenticates with PKCE alone.
@@ -27,22 +31,18 @@ final readonly class ClientRegistration
         public bool $public = false,
     ) {}
 
-    /**
-     * @return array<string, mixed>
-     */
-    public function toArray(): array
+    public function toMetadata(): ClientMetadata
     {
-        return array_filter([
-            'redirect_uris' => $this->redirectUris,
-            'client_name' => $this->clientName,
-            'client_uri' => $this->clientUri,
-            'logo_uri' => $this->logoUri,
-            // Space-separated here, as RFC 7591 says, unlike the
+        return new ClientMetadata(
+            redirectUris: $this->redirectUris,
+            clientName: $this->clientName,
+            clientUri: $this->clientUri,
+            logoUri: $this->logoUri,
+            // Space-separated, as RFC 7591 defines `scope`, unlike the
             // authorisation request's commas.
-            'scope' => $this->scopes === [] ? null : implode(' ', array_map(static fn (Scope $scope): string => $scope->value, $this->scopes)),
-            'grant_types' => $this->refreshTokens ? ['authorization_code', 'refresh_token'] : ['authorization_code'],
-            'response_types' => ['code'],
-            'token_endpoint_auth_method' => $this->public ? 'none' : 'client_secret_post',
-        ], static fn (mixed $value): bool => $value !== null);
+            scopes: array_map(static fn (Scope $scope): string => $scope->value, $this->scopes),
+            grantTypes: $this->refreshTokens ? ['authorization_code', 'refresh_token'] : ['authorization_code'],
+            tokenEndpointAuthMethod: $this->public ? 'none' : 'client_secret_post',
+        );
     }
 }
